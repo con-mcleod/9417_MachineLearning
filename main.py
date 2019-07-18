@@ -23,3 +23,4 @@ if __name__ == "__main__":
 		- Email Omar with our project and group members
 		- Ensure everyone understands github branches
 		- Ensure everyone understands virtual environment
+	"""
