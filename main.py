@@ -6,6 +6,7 @@ main.py: Main file for program execution
 """
 
 from src.connors_model import *
+from darrens_model import *
 from src.data_import import FakeNewsData
 
 # Global Variables
@@ -33,7 +34,7 @@ if __name__ == "__main__":
     print('The length of test stances is', len(test.stances))
     print('The length of test body is', len(test.articleBody))
 
-    connors_model()
+    darrens_model()
 
     # your_model_goes_here
 
