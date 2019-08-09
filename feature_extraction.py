@@ -14,7 +14,7 @@ def compute_tfidf(document):
     features = tfidf.fit_transform(lines)
     df = pd.DataFrame(features.toarray(), columns=tfidf.get_feature_names())
 
-    print(df.values)
+    return df.values
 
 
 if __name__ == "__main__":
