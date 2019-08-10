@@ -37,27 +37,18 @@ def write_to_csv(filename, heading, content):
 
 
 
-def read_articles(df):
+def read_articles(df, read_type):
 	"""
 	Function to analyse the articles of the training set
 	:param df: Pandas dataframe containing training sample
 	:return wordcount: Dictionary containing stance, headline word count and body word count for each article (index on Body ID)
 	"""
 
+	# initialise manual counters
+	num_stances = [0,0,0,0]
+	num_words = 0
 
-	words = {}
-	""" 
-	{
-		'Body_ID':
-		{
-			'Headline_og': ['Headline text...'],
-			'Headline': ['word1', 'word2', ...],
-			'Stance': ['unrelated','discuss','agree','disagree'],
-			'articleBody': ['word1', 'word2', ...]
-		}
-	}
-	"""
-
+	# initialise dictionaries for storing article info
 	wordcount = {}
 	"""
 	{
@@ -70,30 +61,31 @@ def read_articles(df):
 		}
 	}
 	"""
-
-	stance_count = {}
-	stance_count['unrelated'] = {}
-	stance_count['discuss'] = {}
-	stance_count['agree'] = {}
-	stance_count['disagree'] = {}
-	"""
-	{
-		'Stance': {'word1': #, 'word2': #, ...}
-	}
-	"""
+	if (read_type == "train"):
+		stance_count = {}
+		stance_count['unrelated'] = {}
+		stance_count['discuss'] = {}
+		stance_count['agree'] = {}
+		stance_count['disagree'] = {}
+		"""
+		{
+			'Stance': {'word1': #, 'word2': #, ...}
+		}
+		"""
 
 	# for each article
 	for index, article in df.iterrows():
 
 		# prepare dictionary for article entry
 		Body_ID = article['Body ID']
-		words[Body_ID] = {}
-		words[Body_ID]['Headline_og'] = article['Headline']
 		wordcount[Body_ID] = {}
+
 		wordcount[Body_ID]['Headline_og'] = article['Headline']
+		wordcount[Body_ID]['Stance'] = article['Stance']
 
 		# for headline and body of article
 		for text in ['Headline', 'articleBody']:
+
 			# sanitise article text
 			article[text] = article[text].lower()
 			article[text] = article[text].translate(str.maketrans('','',string.punctuation))
@@ -105,30 +97,44 @@ def read_articles(df):
 			# separate article words
 			article_words = (article[text].split(' '))
 			article_words = [word for word in article_words if word not in ignore_words]
-			words[Body_ID][text] = article_words
+			num_words += len(article_words)
 
 			# generate article word count
 			wordcount[Body_ID][text] = {}
 			wordcount[Body_ID][text] = {word:article_words.count(word) for word in article_words}
 
-			# store word count in stance_count dictionary
-			stance = article['Stance']
-			for word in article_words:
-				if (word not in stance_count[stance]):
-					stance_count[stance][word] = 1
-				else:
-					stance_count[stance][word] += 1
-		
-		# store stance into article's dictionary entry
-		words[Body_ID]['Stance'] = article['Stance']
-		wordcount[Body_ID]['Stance'] = article['Stance']
+			if (read_type == "train"):
 
-		# pprint.pprint(stance_count) # pprint.pprint(words)
-	return wordcount, stance_count
+				# store word count in stance_count dictionary
+				stance = article['Stance']
+
+				# manually create count of training stances
+				if text == 'Headline':
+					if stance == 'unrelated':
+						num_stances[0] += 1
+					elif stance == 'discuss':
+						num_stances[1] += 1
+					elif stance == 'agree':
+						num_stances[2] += 1
+					elif stance == 'disagree':
+						num_stances[3] += 1
+
+				# add or increment word to stance_count
+				for word in article_words:
+					if (word not in stance_count[stance]):
+						stance_count[stance][word] = 1
+					else:
+						stance_count[stance][word] += 1
+
+	num_articles = len(wordcount)
+	if (read_type == "train"):
+		return wordcount, stance_count, num_articles, num_stances, num_words
+	else:
+		return wordcount, num_articles, num_words
 
 
 
-def stance_prediction(wordcount, stance_count):
+def stance_prediction(wordcount, stance_count, num_articles, num_stances, num_words):
 	"""
 	Function to predict article stance given the article headline and word count
 	:param wordcount_dict: dictionary containing article's wordcount
@@ -136,29 +142,64 @@ def stance_prediction(wordcount, stance_count):
 	:return prediction: list of lists containing 'Headline', Body ID', 'Stance' where stance is predicted
 	"""
 
+	articles_left = num_articles
 	prediction = {}
-	for key, val in wordcount.items():
-		prediction[key] = {}
-		P_weight = {}
-		for word in val['articleBody']:
-			for stance in ['unrelated', 'discuss', 'agree', 'disagree']:
-				P_weight[stance] = 0
-				probability = stance_count[stance].get(word)
-				stance_total = sum(stance_count[stance].values())
+	for bodyID, words in wordcount.items():
 
-				if (probability):
-					# print (word, probability, stance_total)
-					probability = math.log(probability/stance_total)
-					P_weight[stance] += probability
-		
-		prediction[key]['Headline'] = val['Headline_og']	
-		prediction[key]['Stance'] = max(P_weight.items(), key=operator.itemgetter(1))[0]
+		prediction[bodyID] = {}
+		P_weight = {}
+
+		false_flag = 0
+		body_words = [body_word for body_word in words['articleBody']]
+		for hl_word in words['Headline']:
+			if hl_word not in body_words:
+				false_flag += 1
+		if (len(words['Headline']) <= false_flag*2):
+			prediction[bodyID]['Headline'] = words['Headline_og']
+			prediction[bodyID]['Stance'] = 'unrelated'
+		else:
+
+			for word in words['articleBody']:
+
+				prediction[bodyID][word] = {}
+
+				word_ct = 0
+				for i in stance_count.values():
+					for j, value in i.items():
+						if j == word:
+							word_ct += 1
+				P_evidence = word_ct / num_words
+
+				for stance in ['discuss', 'agree', 'disagree']:
+					P_weight[stance] = 0
+					if (stance_count[stance].get(word)):
+						P_likelihood = stance_count[stance].get(word) / sum(stance_count[stance].values())
+
+						# if stance == 'unrelated':
+						# 	stance_ct = num_stances[0]
+						if stance == 'discuss':
+							stance_ct = num_stances[1]
+						elif stance == 'agree':
+							stance_ct = num_stances[2]
+						elif stance == 'disagree':
+							stance_ct = num_stances[3]
+						P_prior = stance_ct / num_articles
+
+						P_weight[stance] += P_likelihood * P_prior / P_evidence
+
+				prediction[bodyID][word] = max(P_weight.items(), key=operator.itemgetter(1))[0]
+
+			prediction[bodyID]['Headline'] = words['Headline_og']	
+			prediction[bodyID]['Stance'] = max(P_weight.items(), key=operator.itemgetter(1))[0]
+
+		articles_left -= 1
+		print ("predictions remaining: ", articles_left)
 
 	# pprint.pprint (prediction)
 	return prediction
 
 
-def check_predictions(predictions, wordcount):
+def check_predictions(predictions, wordcount, pred_type):
 	"""
 	Function description
 	:params:
@@ -168,11 +209,18 @@ def check_predictions(predictions, wordcount):
 	# comment xxx
 	heading = ['Headline', 'Body ID', 'Stance']
 
+	if pred_type == "train":
+		pred_fn = "output/cm_train_pred.csv"
+		actual_fn = "output/cm_train_actual.csv"
+	elif pred_type == "test":
+		pred_fn = "output/cm_test_pred.csv"
+		actual_fn = "output/cm_test_actual.csv"
+
 	# comment xxx
 	test_set = []
 	for key, val in predictions.items():
 		test_set.append([val['Headline'],key,val['Stance']])
-	test_csv = write_to_csv('output/cm_test_out.csv', heading, test_set)
+	test_csv = write_to_csv(pred_fn, heading, test_set)
 
 	# comment xxx
 	true_set = []
@@ -180,30 +228,38 @@ def check_predictions(predictions, wordcount):
 		true_headline = wordcount[key]['Headline_og']
 		true_stance = wordcount[key]['Stance']
 		true_set.append([true_headline, key, true_stance])
-	true_csv = write_to_csv('output/cm_true_out.csv', heading, true_set)
+	true_csv = write_to_csv(actual_fn, heading, true_set)
 
 	# comment xxx
-	print("\nCM Naive-Bayes Results:\n")
+	print("\nNaive-Bayes Results:\n")
 	report_score(true_csv, test_csv)
 
 
 def connors_model():
 
-	df_bodies = pd.read_csv("data/train_bodies.csv")
-	df_stances = pd.read_csv("data/train_stances.csv")
+	train_bodies = pd.read_csv("data/train_bodies.csv")
+	train_stances = pd.read_csv("data/train_stances.csv")
+	test_bodies = pd.read_csv("data/competition_test_bodies.csv")
+	test_stances = pd.read_csv("data/competition_test_stances.csv")
 
-	df = pd.merge(df_bodies, df_stances, on="Body ID") # df.columns.values: ['Body ID' 'articleBody' 'Headline' 'Stance']
+	df = pd.merge(train_bodies, train_stances, on="Body ID") # df.columns.values: ['Body ID' 'articleBody' 'Headline' 'Stance']
 	# df.set_index('Body ID', inplace=True)
-	train_df, validate_df = train_test_split(df, test_size=0.9995, random_state=0)
-	
-	# comment xxx
-	wordcount, stance_count = read_articles(train_df)
+	df = df.head(3000)
+	train_df, validate_df = train_test_split(df, test_size=0.5, random_state=0)
 
 	# comment xxx
-	predictions = stance_prediction(wordcount, stance_count)
+	wordcount, stance_count, num_articles, num_stances, num_words = read_articles(train_df, "train")
+	train_predictions = stance_prediction(wordcount, stance_count, num_articles, num_stances, num_words)
 
 	# comment xxx
-	check_predictions(predictions, wordcount)
+	check_predictions(train_predictions, wordcount, "train")
+
+	# comment xxx
+	wordcount, num_articles, num_words = read_articles(validate_df, "test")
+	test_predictions = stance_prediction(wordcount, stance_count, num_articles, num_stances, num_words)
+
+	# comment xxx
+	check_predictions(test_predictions, wordcount, "test")
 
 
 

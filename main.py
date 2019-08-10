@@ -58,7 +58,7 @@ if __name__ == "__main__":
     print(train_headlines[0])
     print(train_bodies[0])
 
-    # Choosing the type of trimming for the words
+    Choosing the type of trimming for the words
 
     # connors_model()
 # your_model_goes_here
