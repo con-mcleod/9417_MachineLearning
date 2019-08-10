@@ -151,7 +151,7 @@ if __name__ == "__main__":
 
     # Combine the features to prepare them as an inout for the models
     final_train_features = sp.hstack([train_tfidf_weights, train_sentence_weights.T, train_cos_sim_weights]).A
-    output_file()
+    #output_file()
     final_validation_features = sp.hstack(
         [validation_tfidf_weights, validation_sentence_weights.T, validation_cos_sim_weights]).A
     final_test_features = sp.hstack([test_tfidf_weights, test_sentence_weights.T, test_cos_sim_weights]).A
