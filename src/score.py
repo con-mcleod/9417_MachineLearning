@@ -59,9 +59,18 @@ def score_submission(gold_labels, test_labels):
           [0, 0, 0, 0],
           [0, 0, 0, 0]]
 
+    correct_predictions = {}
+    correct_predictions['agree'] = 0
+    correct_predictions['disagree'] = 0
+    correct_predictions['discuss'] = 0
+    correct_predictions['unrelated'] = 0
+
     for i, (g, t) in enumerate(zip(gold_labels, test_labels)):
         g_stance, t_stance = g, t
         if g_stance == t_stance:
+
+            correct_predictions[str(g_stance)] += 1
+
             score += 0.25
             if g_stance != 'unrelated':
                 score += 0.50
@@ -70,7 +79,7 @@ def score_submission(gold_labels, test_labels):
 
         cm[LABELS.index(g_stance)][LABELS.index(t_stance)] += 1
 
-    return score, cm
+    return score, cm, correct_predictions
 
 
 def score_defaults(gold_labels):
