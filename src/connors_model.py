@@ -74,12 +74,12 @@ def read_articles(df, read_type):
 		# prepare dictionary for article entry
 		Body_ID = article['Body ID']
 
-		if Body_ID in wordcount.keys():
-			print ("duplicate")
-		else:
-			wordcount[Body_ID] = {}
-			wordcount[Body_ID]['Headline_og'] = article['Headline']
-			wordcount[Body_ID]['Stance'] = article['Stance']
+		# if Body_ID in wordcount.keys():
+		# 	print ("duplicate")
+
+		wordcount[Body_ID] = {}
+		wordcount[Body_ID]['Headline_og'] = article['Headline']
+		wordcount[Body_ID]['Stance'] = article['Stance']
 
 		# for headline and body of article
 		for text in ['Headline', 'articleBody']:
@@ -124,8 +124,8 @@ def read_articles(df, read_type):
 					else:
 						stance_count[stance][word] += 1
 
-		num_articles = len(wordcount)
-		print ("Articles read: ", num_articles)
+	num_articles = len(wordcount)
+	print ("Articles read: ", num_articles)
 
 	if (read_type == "train"):
 		return wordcount, stance_count, num_articles, num_stances, num_words
@@ -252,15 +252,15 @@ def connors_model():
 	check_predictions(train_predictions, wordcount, "train")
 
 	# read and check predictions on validation set
-	# wordcount, num_articles, num_words = read_articles(validate_df, "test")
-	# test_predictions = stance_prediction(wordcount, stance_count, num_articles, num_stances, num_words)
-	# check_predictions(test_predictions, wordcount, "test")
+	wordcount, num_articles, num_words = read_articles(validate_df, "test")
+	test_predictions = stance_prediction(wordcount, stance_count, num_articles, num_stances, num_words)
+	check_predictions(test_predictions, wordcount, "test")
 
 	# apply model to competition set
-	# df_comp = pd.merge(test_bodies, test_stances, on="Body ID") 
-	# wordcount, num_articles, num_words = read_articles(df_comp, "test")
-	# test_predictions = stance_prediction(wordcount, stance_count, num_articles, num_stances, num_words)
-	# check_predictions(test_predictions, wordcount, "test")
+	df_comp = pd.merge(test_bodies, test_stances, on="Body ID") 
+	wordcount, num_articles, num_words = read_articles(df_comp, "test")
+	test_predictions = stance_prediction(wordcount, stance_count, num_articles, num_stances, num_words)
+	check_predictions(test_predictions, wordcount, "test")
 
 
 
