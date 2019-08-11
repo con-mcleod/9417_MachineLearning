@@ -4,11 +4,6 @@ Assignment
 Author: Connor McLeod (z5058240)
 connors_model.py: Main calls on this file for model implementation
 
- 	To do:
-	- learn from training subset using several learning frameworks (random forest)
-	- apply models to validation subset
-	- assess results of models on validation set
-
 """
 
 import sys, csv, string, re, pprint, math, operator
@@ -149,12 +144,12 @@ def stance_prediction(wordcount, stance_count, num_articles, num_stances, num_wo
 		prediction[bodyID] = {}
 		P_weight = {}
 
-		false_flag = 0
+		relevant_word = 0
 		body_words = [body_word for body_word in words['articleBody']]
 		for hl_word in words['Headline']:
-			if hl_word not in body_words:
-				false_flag += 1
-		if (len(words['Headline']) <= false_flag*2):
+			if hl_word in body_words:
+				relevant_word += 1
+		if (relevant_word <= (len(words['Headline'])/3)):
 			prediction[bodyID]['Headline'] = words['Headline_og']
 			prediction[bodyID]['Stance'] = 'unrelated'
 		else:
@@ -175,8 +170,6 @@ def stance_prediction(wordcount, stance_count, num_articles, num_stances, num_wo
 					if (stance_count[stance].get(word)):
 						P_likelihood = stance_count[stance].get(word) / sum(stance_count[stance].values())
 
-						# if stance == 'unrelated':
-						# 	stance_ct = num_stances[0]
 						if stance == 'discuss':
 							stance_ct = num_stances[1]
 						elif stance == 'agree':
@@ -206,9 +199,10 @@ def check_predictions(predictions, wordcount, pred_type):
 	:return:
 	"""
 
-	# comment xxx
+	# initialise column headings
 	heading = ['Headline', 'Body ID', 'Stance']
 
+	# set up filenames
 	if pred_type == "train":
 		pred_fn = "output/cm_train_pred.csv"
 		actual_fn = "output/cm_train_actual.csv"
@@ -216,13 +210,13 @@ def check_predictions(predictions, wordcount, pred_type):
 		pred_fn = "output/cm_test_pred.csv"
 		actual_fn = "output/cm_test_actual.csv"
 
-	# comment xxx
+	# create predicted stance csv
 	test_set = []
 	for key, val in predictions.items():
 		test_set.append([val['Headline'],key,val['Stance']])
 	test_csv = write_to_csv(pred_fn, heading, test_set)
 
-	# comment xxx
+	# create actual stance csv
 	true_set = []
 	for key, val in predictions.items():
 		true_headline = wordcount[key]['Headline_og']
@@ -230,7 +224,7 @@ def check_predictions(predictions, wordcount, pred_type):
 		true_set.append([true_headline, key, true_stance])
 	true_csv = write_to_csv(actual_fn, heading, true_set)
 
-	# comment xxx
+	# print out results
 	print("\nNaive-Bayes Results:\n")
 	report_score(true_csv, test_csv)
 
@@ -245,20 +239,26 @@ def connors_model():
 	df = pd.merge(train_bodies, train_stances, on="Body ID") # df.columns.values: ['Body ID' 'articleBody' 'Headline' 'Stance']
 	# df.set_index('Body ID', inplace=True)
 	df = df.head(3000)
-	train_df, validate_df = train_test_split(df, test_size=0.5, random_state=0)
+	train_df, validate_df = train_test_split(df, test_size=0.2, random_state=0)
 
-	# comment xxx
+	# read/"learn" from training articles
 	wordcount, stance_count, num_articles, num_stances, num_words = read_articles(train_df, "train")
 	train_predictions = stance_prediction(wordcount, stance_count, num_articles, num_stances, num_words)
 
-	# comment xxx
+	# check predictions on training set
 	check_predictions(train_predictions, wordcount, "train")
 
-	# comment xxx
+	# read validation set
 	wordcount, num_articles, num_words = read_articles(validate_df, "test")
 	test_predictions = stance_prediction(wordcount, stance_count, num_articles, num_stances, num_words)
 
-	# comment xxx
+	# check predictions on validation set
+	check_predictions(test_predictions, wordcount, "test")
+
+	# apply model to competition set
+	df_comp = pd.merge(test_bodies, test_stances, on="Body ID") 
+	wordcount, num_articles, num_words = read_articles(df_comp, "test")
+	test_predictions = stance_prediction(wordcount, stance_count, num_articles, num_stances, num_words)
 	check_predictions(test_predictions, wordcount, "test")
 
 
