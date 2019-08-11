@@ -1,7 +1,7 @@
 import seaborn as sns
 from src.score import score_submission
 import matplotlib.pyplot as plt
-from src.data_import import FakeNewsData
+import pandas as pd
 
 def plot_results(predicted, actual):
 
@@ -23,13 +23,17 @@ def plot_results(predicted, actual):
     percentages.append(round(predictions['discuss'] / classes['discuss'] * 100, 2))
     percentages.append(round(predictions['unrelated'] / classes['unrelated'] * 100, 2))
 
-
     fig1, ax1 = plt.subplots()
     x = ['agree', 'disagree', 'discuss', 'unrelated']
-    sns.barplot(x, percentages, ax=ax1)
+    acc = sns.barplot(x, percentages, ax=ax1)
+    acc.set(xlabel='Stance', ylabel='Percentage')
+    acc.set_title("Percent Accuracy for each Stance", fontsize=15)
+    plt.tick_params(bottom=False)
 
+    data = pd.DataFrame(cm, columns=x, index=x)
     fig2, ax2 = plt.subplots()
-    sns.heatmap(cm, annot=True, fmt='d', cmap="YlGnBu", vmax=1500, ax=ax2)
+    sns.heatmap(data, annot=True, fmt='d', cmap="YlGnBu", vmax=1500, ax=ax2)
+    plt.tick_params(axis='both', which='major', labelsize=8, labelbottom = False, bottom=False, left=False, top = False, labeltop=True)
     plt.show()
 
 if __name__ == "__main__":
